@@ -1,11 +1,5 @@
 package org.zywx.wbpalmstar.plugin.uexaudio;
 
-import java.io.File;
-
-import org.zywx.wbpalmstar.base.BDebug;
-import org.zywx.wbpalmstar.base.BUtility;
-import org.zywx.wbpalmstar.base.ResoureFinder;
-
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -23,6 +17,12 @@ import android.net.Uri;
 import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
+
+import org.zywx.wbpalmstar.base.BDebug;
+import org.zywx.wbpalmstar.base.BUtility;
+import org.zywx.wbpalmstar.base.ResoureFinder;
+
+import java.io.File;
 
 public abstract class PFMusicPlayer {
 
@@ -51,6 +51,8 @@ public abstract class PFMusicPlayer {
 
     private int loopCount = 0;
     private int loopIndex = 0;
+    private int curPosition=0;
+    private static String TAG="PFMusicPlayer";
 
     private boolean isModeInCall = false;
 
@@ -133,10 +135,29 @@ public abstract class PFMusicPlayer {
     public void open() {
         if (m_mediaPlayer == null) {
             m_mediaPlayer = new MediaPlayer();
+            m_mediaPlayer.setOnPreparedListener(new mediaPlayerPreparedListener());
+            m_mediaPlayer.setOnSeekCompleteListener(new mediaPlayerSeekCompleteListener());
             m_mediaPlayer.setOnCompletionListener(new mediaPlayerCompletionListener());
             m_mediaPlayer.setOnErrorListener(new mediaPlayerErrorListener());
             playState = MEDIAPLAY_STATE_STOPING;
         }
+    }
+
+    class mediaPlayerPreparedListener implements MediaPlayer.OnPreparedListener{
+        @Override
+        public void onPrepared(MediaPlayer mp) {
+            mp.seekTo(curPosition);
+            mp.start();
+        }
+    }
+
+
+    class mediaPlayerSeekCompleteListener implements MediaPlayer.OnSeekCompleteListener{
+        @Override
+        public void onSeekComplete(MediaPlayer mp) {
+            onSeekFinished(curPosition);
+        }
+
     }
 
     /*
@@ -170,6 +191,11 @@ public abstract class PFMusicPlayer {
      * 播放完音乐（提供给EUEX对象回调）
      */
     public abstract void onPlayFinished(int index);
+
+    /*
+     * seekTo完成后的回调（提供给EUEX对象回调）
+     */
+    public abstract void onSeekFinished(int position);
 
     /*
      * 音乐出错监听
@@ -321,17 +347,23 @@ public abstract class PFMusicPlayer {
     public void stop() {
         try {
             if (m_mediaPlayer != null) {
-                boolean isPlaying = m_mediaPlayer.isPlaying();
                 m_mediaPlayer.stop();
                 playState = MEDIAPLAY_STATE_STOPING;
-                if (isPlaying) {
-                    onPlayFinished(loopIndex);
-                }
             }
         } catch (Exception e) {
 
         }
         checkModeEnd();
+    }
+
+    /**
+     *  释放播放器资源
+     */
+    public void release(){
+        if (m_mediaPlayer != null) {
+            m_mediaPlayer.release();
+            m_mediaPlayer=null;
+        }
     }
 
     /*
@@ -360,6 +392,83 @@ public abstract class PFMusicPlayer {
                 }
             } catch (Exception e) {
 
+            }
+        }
+    }
+
+    /**
+     * 获取当前播放位置
+     */
+    public int getCurrentPosition() {
+        Log.i(TAG, "getCurrentPosition");
+        if (m_mediaPlayer == null) {
+            Log.i(TAG, "media player is not init");
+            return 0;
+        }
+        return m_mediaPlayer.getCurrentPosition();
+    }
+
+    /**
+     * 获取播放器的当前状态
+     */
+    public int getPlayerState() {
+        Log.i(TAG, "getPlayerState");
+        if (m_mediaPlayer == null) {
+            Log.i(TAG, "media player is not init");
+            return MEDIAPLAY_STATE_STOPING;
+        }
+        return playState;
+    }
+
+    /**
+     * 跳转到指定位置播放音频
+     *
+     * @param inPath   音频源文件路径
+     * @param loopType 循环播放
+     * @param position 跳转播放目标位置单位MS
+     */
+    public void seekTo(int position, String inPath, int loopType) {
+        if (m_mediaPlayer != null) {
+            try {
+                curPosition=position;
+                checkModeStart();
+                switch (playState) {
+                    case MEDIAPLAY_STATE_STOPING:
+                        m_mediaPlayer.reset();
+                        if (loadMediaPlayerFile(inPath)) {// 读取文件成功才执行
+                            m_mediaPlayer.prepareAsync();
+                            switch (loopType) {
+                                case -1:
+                                    m_mediaPlayer.setLooping(true);
+                                    loopCount = -1;
+                                    loopIndex = 0;
+                                    break;
+                                case 0:
+                                    m_mediaPlayer.setLooping(false);
+                                    loopCount = 0;
+                                    loopIndex = 0;
+                                    break;
+                                default:
+                                    if (loopType > 0) {
+                                        m_mediaPlayer.setLooping(false);
+                                        loopCount = loopType - 1;
+                                        loopIndex = 0;
+                                    }
+                                    break;
+                            }
+                            playState = MEDIAPLAY_STATE_PLAYING;
+                        }
+                        break;
+                    case MEDIAPLAY_STATE_PLAYING:
+                    case MEDIAPLAY_STATE_PAUSEING:
+                        m_mediaPlayer.seekTo(position);
+                        m_mediaPlayer.start();
+                        playState = MEDIAPLAY_STATE_PLAYING;
+                        break;
+                }
+            } catch (Exception e) {
+                Toast.makeText(m_context, ResoureFinder.getInstance().getStringId(m_context, "plugin_audio_info_nofile"), Toast.LENGTH_LONG).show();
+                checkModeEnd();
             }
         }
     }

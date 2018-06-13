@@ -2,6 +2,7 @@ var UNIT_TEST = {
     units : [],
     testcase : null,
     addCase : function(name, items) {
+        alert("items:"+items);
         for (var i in items) {
             var item = {
                 name : name,

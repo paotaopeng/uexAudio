@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <uexplugins>
-    <plugin uexName="uexAudio" version="4.0.4" build="14">
-        <info>14:新增录音权限拒绝监听回调,添加英文资源包,修复报无权限的问题</info>
-        <build>13:增加停止正在播放音频后的回调函数</build>
+    <plugin uexName="uexAudio" version="4.2.1" build="21">
+        <build>21:删除停止正在播放音频后的回调函数</build>
+        <build>20:修复多次播放后，mediaplay因内存不足异常的问题</build>
+        <build>19:新增录音权限拒绝监听回调,添加英文资源包,修复报无权限的问题</build>
+        <build>18:增加停止正在播放音频后的回调函数</build>
+        <build>17:修改startBackgroundRecord方法,在子线程中进行录音</build>
+        <build>16:将seekTo的prepare改为prepareAsync</build>
+        <build>15:添加seekTo的回调方法</build>
+        <build>14:添加seekTo、getCurrentPosition、getPlayerState</build>
+        <build>13:修改stopBackgroundRecord阻塞主线程</build>
         <build>12:修改onPlayFinished 次数从1开始</build>
         <build>11:修复play参数传-1不循环播放的问题</build>
         <build>10:4.0</build>

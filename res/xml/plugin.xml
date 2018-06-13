@@ -23,6 +23,9 @@
         <method name="closeSoundPool"/>
         <method name="setPlayMode"/>
         <method name="setProximityState"/>
+        <method name="getPlayerState" />
+        <method name="getCurrentPosition" />
+        <method name="seekTo" />
     </plugin>
     <!-- uexFileMgr -->
     <plugin

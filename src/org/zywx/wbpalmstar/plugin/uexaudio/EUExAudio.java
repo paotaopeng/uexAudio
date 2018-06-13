@@ -25,6 +25,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
+import android.util.Log;
 import android.widget.Toast;
 
 import org.json.JSONException;
@@ -46,11 +47,13 @@ import java.util.List;
 
 public class EUExAudio extends EUExBase {
     public static final String tag = "uexAudio_";
+	public static final String FUNC_GET_POSITION_CALLBACK = "uexAudio.cbGetCurrentPosition";
     public static final int F_ACT_REQ_CODE_UEX_AUDIO_RECORD = 4;
     public static final String F_CALLBACK_NAME_AUDIO_RECORD = "uexAudio.cbRecord";
     public static final String F_CALLBACK_NAME_AUDIO_BACKGROUND_RECORD = "uexAudio.cbBackgroundRecord";
     public static final String FINISHED = "uexAudio.onPlayFinished";
     private static final String FUNC_ON_PERMISSION_DENIED = "uexAudio.onPermissionDenied";
+    public static final String SEEK_FINISHED = "uexAudio.onSeekFinished";
     private PFMusicPlayer m_pfMusicPlayer = null;
     private String m_mediaPath;
     private ArrayList<Integer> IdsList = new ArrayList<Integer>();
@@ -118,6 +121,13 @@ public class EUExAudio extends EUExBase {
                         String js = SCRIPT_HEADER + "if(" + FINISHED + "){" + FINISHED + "(" + index + ");}";
                         onCallback(js);
                     }
+
+                    @Override
+                    public void onSeekFinished(int position) {
+                        String js = SCRIPT_HEADER + "if(" + SEEK_FINISHED + "){" + SEEK_FINISHED + "(" + position + ");}";
+                        onCallback(js);
+                    }
+
                 };
             if (m_pfMusicPlayer != null) {
                 m_pfMusicPlayer.basePath = mBrwView.getCurrentUrl();
@@ -149,17 +159,33 @@ public class EUExAudio extends EUExBase {
         }
     }
 
-    /*
-     * 暂停音乐接口
-     */
-    public void pause(String[] parm) {
-        if (m_pfMusicPlayer != null) {
-            m_pfMusicPlayer.pause();
-        } else {
-            errorCallback(0, EUExCallback.F_E_AUDIO_MUSIC_PAUSE_NO_OPEN_ERROR_CODE,
-            /* "文件未打开错误" */finder.getString(mContext, "plugin_audio_no_open_error"));
-        }
-    }
+	/*
+	 * 跳转到指定位置播放音乐接口
+	 */
+	public void seekTo(String[] parm) {
+		if(parm.length != 1 && parm.length != 2)
+			return ;
+		int loop = parm.length == 1 ? 0 : Integer.parseInt(parm[1]);//兼容只有一个参数（如果只有一个参数，loop默认为0）
+		int position=Integer.parseInt(parm[0]);
+		if (m_pfMusicPlayer != null) {
+			m_pfMusicPlayer.seekTo(position,m_mediaPath,loop);
+		} else {
+			errorCallback(0, EUExCallback.F_E_AUDIO_MUSIC_PLAY_NO_OPEN_ERROR_CODE,
+		/* "文件未打开错误" */finder.getString(mContext, "plugin_audio_no_open_error"));
+		}
+	}
+
+	/*
+	 * 暂停音乐接口
+	 */
+	public void pause(String[] parm) {
+		if (m_pfMusicPlayer != null) {
+			m_pfMusicPlayer.pause();
+		} else {
+			errorCallback(0, EUExCallback.F_E_AUDIO_MUSIC_PAUSE_NO_OPEN_ERROR_CODE,
+			/* "文件未打开错误" */finder.getString(mContext, "plugin_audio_no_open_error"));
+		}
+	}
 
     /*
      * 停止播放音乐
@@ -267,11 +293,11 @@ public class EUExAudio extends EUExBase {
      * @description 对于录音权限被用户禁止的情况，打开app第一次录音时，先测试录音，测试后如果ok，则用户继续录音，否则提示用户，
      * 此测试对hybrid开发人员和用户是透明的。
      */
-    public void startBackgroundRecord(String[] parm) {
-        for (String par : parm) {
+    public void startBackgroundRecord(String[] parma) {
+        for (String par : parma) {
             BDebug.i(par);
         }
-        if (parm.length < 1) {
+        if (parma.length<1) {
             return;
         }
         final String audioFolder = mBrwView.getRootWidget().getWidgetPath() + BUtility.F_APP_AUDIO;
@@ -292,22 +318,27 @@ public class EUExAudio extends EUExBase {
                 file.delete();
             }
         }
-        String fileName = null;
-        if (parm.length > 1) {
-            fileName = parm[1];
-        } else {
-            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");
-            Date curDate = new Date(System.currentTimeMillis());//获取当前时间
-            String str = formatter.format(curDate);
-            fileName = String.valueOf(str);
-        }
-        if (startBackgroundRecord_singleton) {
-            // 开始正式录音
-            start_record_fail = false;
-            testedPermission = true;
-            audioRecorder.startRecord(new File(audioFolder), Integer.valueOf(parm[0]),fileName);
-            startBackgroundRecord_singleton = false;
-        }
+        final String[] parm=parma;
+        new Thread(){
+            public void run() {
+                String fileName=null;
+                if (parm.length>1){
+                    fileName=parm[1];
+                }else {
+                    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");
+                    Date curDate = new Date(System.currentTimeMillis());//获取当前时间
+                    String str = formatter.format(curDate);
+                    fileName = String.valueOf(str);
+                }
+                if (startBackgroundRecord_singleton) {
+                    // 开始正式录音
+                    start_record_fail = false;
+                    testedPermission = true;
+                    audioRecorder.startRecord(new File(audioFolder), Integer.valueOf(parm[0]),fileName);
+                    startBackgroundRecord_singleton = false;
+                }
+            }
+        }.start();
     }
 
     private void TestBackgroundRecord(String audioFolder) throws Exception {
@@ -323,8 +354,8 @@ public class EUExAudio extends EUExBase {
             size = fis.available();
             fis.close();
         }
-        BDebug.i("test size", size + "");
-        if ((recordFile == null) || (recordFile.endsWith(".amr") && size <= 30)) {
+        Log.i("audiosize", size + "");
+        if ((recordFile == null) || (recordFile.endsWith(".amr") && size <= 0)) {
             throw new myAudioPermissionException("AudioPermission maybe denied, please accept audio permission");
         }
     }
@@ -337,59 +368,64 @@ public class EUExAudio extends EUExBase {
         }
     }
 
-    public void stopBackgroundRecord(String[] parm) {
-        int callbackId=-1;
-        if (parm.length>0){
-            callbackId= Integer.parseInt(parm[0]);
-        }
-        if (start_record_fail) {
-            start_record_fail = false;
-            BDebug.i("已知无权限", "跳出");
-            return;
-        } else if (!startBackgroundRecord_singleton) {
-            for (String par : parm) {
-                BDebug.i(par);
-            }
-            long size = 0;
-            audioRecorder.stopRecord();
-            String recordFile = audioRecorder.getRecordFile();// !=""?audioRecorder.getRecordFile():"null";
-            try {
-                File file = new File(recordFile);
-                if (file.exists()) {
-                    FileInputStream fis = null;
-                    fis = new FileInputStream(file);
-                    size = fis.available();
-                    fis.close();
+    public void stopBackgroundRecord(String[] parma) {
+        final String[] parm=parma;
+        new Thread(){
+            public void run() {
+                int callbackId=-1;
+                if (parm.length>0){
+                    callbackId= Integer.parseInt(parm[0]);
                 }
-            } catch (Exception e) {
-                BDebug.i("startRecord", "录音失败1");
-                if(callbackId!=-1){
-                    callbackToJs(callbackId,false);
-                }else{
-                    errorCallback(0, EUExCallback.F_E_AUDIO_SOUND_PLAY_NO_OPEN_ERROR_CODE,
-                            finder.getString(mContext, "plugin_audio_no_open_error"));
+                if (start_record_fail) {
+                    start_record_fail = false;
+                    BDebug.i("已知无权限", "跳出");
+                    return;
+                } else if (!startBackgroundRecord_singleton) {
+                    for (String par : parm) {
+                        BDebug.i(par);
+                    }
+                    long size = 0;
+                    audioRecorder.stopRecord();
+                    String recordFile = audioRecorder.getRecordFile();// !=""?audioRecorder.getRecordFile():"null";
+                    try {
+                        File file = new File(recordFile);
+                        if (file.exists()) {
+                            FileInputStream fis = null;
+                            fis = new FileInputStream(file);
+                            size = fis.available();
+                            fis.close();
+                        }
+                    } catch (Exception e) {
+                        BDebug.i("startRecord", "录音失败1");
+                        if(callbackId!=-1){
+                            callbackToJs(callbackId,false);
+                        }else{
+                            errorCallback(0, EUExCallback.F_E_AUDIO_SOUND_PLAY_NO_OPEN_ERROR_CODE,
+                                    finder.getString(mContext, "plugin_audio_no_open_error"));
 
+                        }
+                        return;
+                    }
+                    BDebug.i("size", size + "");
+                    if ((recordFile.endsWith(".amr") && size <= 100) || (recordFile.endsWith(".mp3") && size <= 2000)) {
+                        BDebug.i("startRecord", "录音失败2");
+                        if(callbackId!=-1){
+                            callbackToJs(callbackId,false);
+                        }else{
+                            errorCallback(0, EUExCallback.F_E_AUDIO_SOUND_PLAY_NO_OPEN_ERROR_CODE,
+                                    finder.getString(mContext, "plugin_audio_no_open_error"));
+                        }
+                     } else {
+                        if(callbackId!=-1){
+                            callbackToJs(callbackId,false,recordFile);
+                        }else{
+                            jsCallback(F_CALLBACK_NAME_AUDIO_BACKGROUND_RECORD, 0, EUExCallback.F_C_TEXT, recordFile);
+                        }
+                     }
+                    startBackgroundRecord_singleton = true;
                 }
-                return;
             }
-            BDebug.i("size", size + "");
-            if ((recordFile.endsWith(".amr") && size <= 100) || (recordFile.endsWith(".mp3") && size <= 2000)) {
-                BDebug.i("startRecord", "录音失败2");
-                if(callbackId!=-1){
-                    callbackToJs(callbackId,false);
-                }else{
-                    errorCallback(0, EUExCallback.F_E_AUDIO_SOUND_PLAY_NO_OPEN_ERROR_CODE,
-                            finder.getString(mContext, "plugin_audio_no_open_error"));
-                }
-             } else {
-                if(callbackId!=-1){
-                    callbackToJs(callbackId,false,recordFile);
-                }else{
-                    jsCallback(F_CALLBACK_NAME_AUDIO_BACKGROUND_RECORD, 0, EUExCallback.F_C_TEXT, recordFile);
-                }
-             }
-            startBackgroundRecord_singleton = true;
-        }
+        }.start();
     }
 
     public void openSoundPool(String[] parm) {
@@ -398,6 +434,11 @@ public class EUExAudio extends EUExBase {
 
                 @Override
                 public void onPlayFinished(int index) {
+                }
+
+                @Override
+                public void onSeekFinished(int position) {
+
                 }
             };
         if (m_pfMusicPlayer != null) {
@@ -544,6 +585,7 @@ public class EUExAudio extends EUExBase {
     public boolean clean() {
         if (m_pfMusicPlayer != null) {
             m_pfMusicPlayer.stop();
+            m_pfMusicPlayer.release();
             for (Integer id : IdsList) {
                 m_pfMusicPlayer.stopSound(id);
             }
@@ -574,4 +616,25 @@ public class EUExAudio extends EUExBase {
                 + jsCallbackName + "(" + data + ");}";
         onCallback(js);
     }
+	/**
+	 * 获取当前播放位置
+	 */
+	public int getCurrentPosition(String[] params){
+		int position;
+		if (m_pfMusicPlayer == null) {
+			position=0;
+		}
+		position=m_pfMusicPlayer.getCurrentPosition();
+		Log.i(tag,"EUExAudio getCurrentPosition:"+position);
+		return position;
+	}
+
+	/**
+	 * 获取播放器的当前状态
+	 */
+	public int getPlayerState(String[] params){
+		int state=m_pfMusicPlayer.getPlayerState();
+		Log.i(tag,"EUExAudio getPlayerState:"+state);
+		return state;
+	}
 }

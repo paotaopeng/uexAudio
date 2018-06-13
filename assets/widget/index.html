@@ -29,6 +29,7 @@
                     <h1 class="ut ub-f1 ulev-3 ut-s tx-c" tabindex="0">测试系统</h1>
                     <div class="nav-btn" id="nav-right">
                         <div class="fa  fa-1g  ub-img1">
+                            test
                         </div>
                     </div>
                 </div>
@@ -41,22 +42,19 @@
         <script src="js/appcan.control.js">
         </script>
         <script type="text/javascript">
-        var plugins = [
-            "uexAudio"
-        ];
-        var dom = $("#pluginList");
-        plugins.forEach(function(aPlugin){
-            dom.append("<div class=\"btncss\" data-control=\"BOX\"><div class=\"button ub ub-ac bc-text-head ub-pc bc-btn\" onclick='openTestCase(\"" + aPlugin + "\")'>" + aPlugin + "</div></div>")
-        });
+             appcan.button("#nav-left", "btn-act", function() {
+
+             });
+
+            appcan.button("#nav-right", "btn-act", function() {
+                uexWindow.open("uexAudio", 0, "uexAudio.html",0,0,0,0);
+            });
+
+
         </script>
 
 
-        <script src="js/appcan.scrollbox.js">
-        </script>
-        <script src="js/template.import.js">
-        </script>
-        <script src="./assets/mvvm/index.js">
-        </script>
+
 
     </body>
 

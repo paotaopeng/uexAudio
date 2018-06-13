@@ -15,14 +15,345 @@
     </script>
     <script src="js/zy_click.js">
     </script>
-    <script src="js/uexAudio.js">
-    </script>
+    <script type="text/javascript">
+		
+var type = 0;
+
+var soundid=8;
+
+function openMusicExplorer(){
+
+	type = 0;
+
+	uexFileMgr.explorer('');
+
+}
+
+function openListMusicExplorer(){
+
+	type = 1;
+
+	uexFileMgr.explorer('');
+
+}
+
+function openSoundExplorer(){
+
+	type = 2;
+
+	uexFileMgr.explorer('');
+
+}
+
+// 音乐播放
+
+function audioMgr(type,url){
+
+	if(type == -1){		
+		alert("打开音频");
+		uexAudio.open(url);			
+
+	}else if(type == 0){				
+
+		uexAudio.play();
+
+	}else if(type == 2){
+		alert("停止音频播放");
+		uexAudio.stop();
+
+	}else if(type == 3){
+
+		uexAudio.pause();
+
+	}else if(type == 5){
+
+		uexAudio.volumeUp();
+
+	}else if(type == 6){
+
+		uexAudio.volumeDown();
+
+	}else if(type == 7){
+
+		var value = document.getElementById('musicList').value;
+
+		if(value != '' && value.length > 0){
+
+			var mycars=value.split(";");
+
+			uexAudio.openPlayer(mycars,"0");
+
+		}else{
+
+			alert("文件列表不能为空！");
+
+		}
+
+	}else if(type == 8){
+
+		uexAudio.record('recordCallBack','failedCallBack');
+
+	}else if(type==9){
+
+		uexAudio.openSoundPool();
+
+	}else if(type==10){
+
+		if(soundid>0)		
+
+			uexAudio.playFromSoundPool(soundid);
+
+	}else if(type==11){
+
+		if(soundid>0){
+
+			uexAudio.stopFromSoundPool(soundid);
+
+		}
+
+	}else if(type == 12)
+
+    {
+
+        uexAudio.addSound(soundid,url);
+
+    }else if(type == 13)
+
+    uexAudio.closeSoundPool();
+
+}
+
+function recordCallBack(data){
+
+	var obj = eval('('+data+')');
+
+	document.getElementById('videorecord').innerHTML  = obj.audioRecorderPath;
+
+}
+
+function explorerSuccess(data){
+
+	var obj = eval('('+data+')');
+
+	document.getElementById('hidText').value = obj.fileExplorerPath;
+
+	document.getElementById('file').innerHTML = obj.fileExplorerPath;
+
+}
+
+var cText = 0;
+
+var cJson = 1;
+
+var cInt = 2;
+
+
+
+
+
+function playBackRecord() {
+
+		uexAudio.open(recordPath);
+
+		uexAudio.play('2');
+
+	}
+	function playMode() {
+		var param = {
+             playMode:'0'
+        };
+        param = JSON.stringify(param);
+	
+		uexAudio.setPlayMode(param);
+
+	}
+	function playMode1() {
+		var param = {
+             playMode:'1'
+        };
+        param = JSON.stringify(param);
+	
+		uexAudio.setPlayMode(param);
+
+	}
+
+	var recordPath;
+
+		window.uexOnload = function(){
+
+
+
+
+		uexAudio.onPlayFinished=function(data){
+			console.log("music finished"+data);
+		}
+
+		uexAudio.onSeekFinished=function(data){
+			console.log("music seek finished"+data);
+		}
+
+		uexAudio.cbBackgroundRecord = function(opCode, dataType, data) {
+
+			alert("Path11:" + data);
+
+			recordPath = data;
+
+			document.getElementById('backrecord').innerHTML = data;
+			uexAudio.open(data);
+			uexAudio.play();
+
+		}
+
+			uexAudio.cbRecord=function (opCode,dataType,data){
+
+				switch(dataType){
+
+					case cText:
+                        recordPath = data;
+					    document.getElementById('backrecord').innerHTML  = data;
+
+					  break;
+
+					case cJson:
+
+					  alert("uex.cJson");
+
+					  break;
+
+					case cInt:
+
+			    alert("uex.cInt");
+
+			    break;
+
+			  default:
+
+			    alert("error");
+
+					}
+
+				}
+
+
+
+			uexFileMgr.cbExplorer=function(opCode,dataType,data){
+
+				if(type == 0){
+
+					document.getElementById('hidText').value = data;
+
+					document.getElementById('file').innerHTML = data;
+
+				}
+
+				if(type == 1){
+
+					var value = document.getElementById('musicList').value;
+
+					if(value != '' && value.length > 0){
+
+						document.getElementById('musicList').value = value+";"+data;
+
+					}else{
+
+						document.getElementById('musicList').value = data;
+
+					}
+
+				}
+
+				if(type==2){
+
+					document.getElementById('SoundhidText').value = data;
+
+					document.getElementById('Soundfile').innerHTML = data;
+
+					soundid=document.getElementById('dirPath').value;
+
+				}
+
+			}
+
+
+
+
+
+			uexWidgetOne.cbError = function(opCode, errorCode, errorInfo){
+
+				alert("错误代码："+errorCode+"\n"+"错误内容："+errorInfo);
+
+			}
+
+			
+
+			}
+
+		function getCurrentPosition(){
+			//alert("当前播放位置:"+uexAudio.getCurrentPosition());
+		}
+
+		function getPlayerState(){
+			alert("播放器状态:"+uexAudio.getPlayerState());
+		}
+
+		function seekTo(){
+			var position=parseInt(document.getElementById('position').value);
+			uexAudio.seekTo(position);
+		}
+
+		function httpSeekTo(){
+			var audioPath="http://www.huihuabao.com/course/textbook/primary_school/S2/B1/01Starter unit/textbook.mp3";
+            uexAudio.open(audioPath);
+			var position=parseInt(document.getElementById('httpPosition').value);
+			uexAudio.seekTo(position);
+		}
+
+		function stopBackgroundRecord(){
+			var startTime=new Date().getTime();
+			alert("stopBackgroundRecord:"+startTime);
+			uexAudio.stopBackgroundRecord();
+			alert("stopBackgroundRecord 耗时："+(new Date().getTime()-startTime));
+		}
+
+		function backWin(){
+			uexWindow.close(-1, 1000);
+		}
+
+		var timeInterval=null;
+		function playAudio(){
+			if(timeInterval != null){
+                clearInterval(timeInterval);
+                timeInterval = null;
+            }
+			var startTime=2.750113267;
+			var endTime=4.157822964;
+			uexAudio.open("wgt://audio/textbook.mp3");
+			uexAudio.seekTo(parseInt(startTime*1000));
+			timeInterval=setInterval(function(){
+                var currentTime = uexAudio.getCurrentPosition()/1000;
+                console.log("currentTime:"+currentTime+" endTime:"+endTime);
+                if(currentTime>=endTime){
+                	uexAudio.pause();
+                	 clearInterval(timeInterval);
+                	 timeInterval = null;
+                }
+			}, 100);
+		}
+		</script>
   </head>
 <body class="um-vp " ontouchstart>
-    <div class="tit">Audio</div>
+    <div class="tit" onclick="backWin();">Audio</div>
 	<div class="conbor">
 
 		<div class="consj">
+			<span>播放某段时间的音频</span>
+			<input class="btn" type="button" value="时间段音频播放" onclick="playAudio();">
+
+
+			<span>0.使用seekTo播放在线音频</span>
+			<input id="httpPosition" type="text" value="2500">
+			<input class="btn" type="button" value="定位播放" onclick="httpSeekTo();">
+
 
 			<input class="btn" type="button" value="选择音频文件" onclick="openMusicExplorer();">
 
@@ -44,9 +375,9 @@
 
 			<span>box://wql.mp3存在于"doctuments/box/"</span>
 
-			<input class="textbox"id="hidText" type="text"-->
+			<input class="textbox"id="hidText" type="text"--> 
 
-
+			
 
 			<span>1.打开音乐</span>
 
@@ -55,6 +386,9 @@
 			<span>2.播放音乐</span>
 
 			<input class="btn" type="button" value="音乐播放" onclick="audioMgr(0,'');">
+			<span>3.获取当前播放位置</span>
+
+			<input class="btn" type="button" value="获取当前播放位置" onclick="getCurrentPosition();">
 
 			<span>4.停止播放</span>
 
@@ -63,6 +397,13 @@
 			<span>5.暂停播放</span>
 
 			<input class="btn" type="button" value="暂停播放" onclick="audioMgr(3,'');">
+
+			<!--<span>6.获取播放器状态</span>-->
+
+			<!--<input class="btn" type="button" value="获取播放器状态" onclick="getPlayerState();">-->
+			<span>6.定位播放</span>
+			<input id="position" type="text" value="">
+			<input class="btn" type="button" value="定位播放" onclick="seekTo();">
 
 			<span>7.声音 +</span>
 
@@ -83,9 +424,9 @@
 			<input class="btn" type="button" value="打开音乐界面" onclick="audioMgr(7,document.getElementById('hidText').value);">
 
 			<span>10.音效测试</span>
-			<span>输入音效文件id</span>
+			<span>输入音效文件id</span> 
 
-			<input class="textbox"id="dirPath" type="text" value="8">
+			<input class="textbox"id="dirPath" type="text" value="8"> 
 
 			<span>选择音效文件</span>
 
@@ -113,16 +454,16 @@
 
             <span>关闭音效</span>
 
-            <input class="btn" type="button" value="关闭音效" onclick="audioMgr(13,'');">
+            <input class="btn" type="button" value="关闭音效" onclick="audioMgr(13,'');"> 
 
 			<span>11.录音</span>
 
-			<input class="btn" type="button" value="录音" onclick="record();">
+			<input class="btn" type="button" value="录音" onclick="uexAudio.record(1,'cui');">
 
 
 	        <input class="btn" type="button" value="开始后台录音"
 
-				onclick="startBackgroundRecord();"> <input
+				onclick="uexAudio.startBackgroundRecord(0,'test');"> <input
 
 				class="btn" type="button" value="停止后台录音"
 
